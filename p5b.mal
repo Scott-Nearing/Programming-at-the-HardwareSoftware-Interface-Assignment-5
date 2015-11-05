@@ -1,0 +1,230 @@
+#Scott Nearing
+#sn379745
+#project 5 part b
+#Lab: W. 9:20am
+#Lab TA: Daniel Bokser
+
+#General Description:
+ #This program processes a string of at most 80 characters input by the user.
+  #The program first prompts the user for a line, then it calls a 2nd function
+  #which checks if the entire line is whitespace. 
+   #An appropriate message is displayed if the user's line is entirely whitespace.
+   #If non-whitespace characters are detected the line is processed.
+    #The program loops through the user's input character by character checking for
+    #"words"; a word is one or more characters that doesn't include a whitespace.
+     #Words are processed upon detection. The length of the current word is compared
+     #to the length of previously known maximum and minimum word lengths. 
+      #Default values too large or too small to prevent a word from the user's line
+      #are used. The default word lengths are never output because  a line without
+      #any words will not be processed further than determining that it consists only
+      #of whitespace characters.
+       #This program also counts the number of non-whitespace characters that appear 
+       #in the user's input and the number of words detected.
+        #This program prints the number of non-whitespace characters, the number of
+        #words, the length of the longest word, the length of the shortest word,
+        #the longest word, and the shortest word after the user's input has been processed.
+
+#function to determine if the entire line is whitespace
+ #prints message and closes program if it finds a null character
+  #loops everytime it finds a whitespace character
+   #returns to main if character isn't a whitespace character or NULL
+
+		.data
+whitemess:	.asciiz "Line contains only white space characters."
+
+		.text
+whitecheck:	
+   #load character from postion 0 of array into $9
+		lbu $9,0($8)
+   #if $9 holds a null character(ascii 0); we jump to label to print message then quit
+		beq $9,$0, printmess
+   #increments $8 to point to next character for next iteration of loop
+		addi $8,$8,1
+   #if $9 holds a tab we jump to top of whitecheck
+		beq $9,$10 whitecheck
+   #if $9 holds a space we jump to top of whitecheck
+		beq $9,$11 whitecheck
+   #if $9 holds a newline character we jump to top of whitecheck
+		beq $9,$12 whitecheck
+   #at this point we would have exited the program if a null character was found or jumped to the top if a whitespace was found
+    #so a non-whitespace character must have been found
+     #so we return to the main function
+		jr $31
+   #$8 must be pointing to the first non-whitespace character at this point
+
+   #print whitemess and exit
+printmess: 	li $v0,4
+		la $a0, whitemess
+		syscall
+		li $v0,10
+		syscall
+		
+
+
+#main 
+ #This Function reads in the input, calls whitecheck: which determines if the entire
+ #line is whitespace, processes the input, and displays information about the user's
+ #line.
+		.data
+stringa:	.byte 0:81		#holds the user's input
+prompt:		.asciiz "Please enter a line of at most 80 characters:\n" #prompt
+   #strings used for output
+outa:		.asciiz "\nNo. of non-whitespace characters: "
+outb:		.asciiz "\nNo. of words: "
+outc:		.asciiz "\nMaximum length of a word: "
+outd:		.asciiz "\nMinimum length of a word: "
+oute:		.asciiz "\nWord of maximum length: "
+outf:		.asciiz "\nWord of minimum length: "
+
+		.text
+		.globl main
+main:
+
+   #storing constants into registers for comparison
+		li $10,9		#loads 9 into register 10; 9 is ascii for tab
+		li $11,32		#loads 32 into register 11; 32 is ascii for space
+		li $12,10		#loads 10 into register 12; 10 is ascii for newline
+
+   #setting initial values
+		li $14,1		#$14 is used as a flag for whitespace characters
+	#	li $9,1			#$9 must not start with 0 in it; holds current character
+		li $15,0		#$15 holds the counter for the characters in the current word
+		li $16,0		#$16 holds the length of the max word; starts at 0
+		li $18,81		#$18 holds the length of the min word; starts at 81
+		li $20,0		#$20 counts the number of non-whitespace characters in the line; starts at 0
+		li $21,0		#$21 counts the number of words in the line; starts at 0
+
+   #prompt the user to enter a string
+		la $a0,prompt
+		li $v0,4
+		syscall
+
+   #Scan the user's string into stringa
+		la $a0,stringa
+		li $a1,81
+		li $v0,8
+		syscall
+
+   #set address of stringa to a register then  jump and link to whitecheck function
+		la $8,stringa
+		jal whitecheck   
+
+
+   #non-whitespace character was found; test string
+
+		la $8,stringa 		#load starting address back into $8
+
+loop:		beq $9,$0 print		#jump to print first if '\0' has already been read into $9
+		lbu $9,0($8)		#load character
+		beq $9,$0 print
+		
+   #jump to white if $9 holds a white space character
+		beq $9,$10, white
+		beq $9,$11, white
+		beq $9,$12, white
+
+   #jump to print if $9 holds a '\0'
+		beq $9,$0, print
+
+   #character isn't '\0' or whitespace; jump to firstchar: if whiteflag($14) != 0
+		bne $14,$0, firstchar
+
+   #character isn't '\0', whitespace, or the first non-whitespace character
+		addi $15,$15,1		#add 1 to word's length counter($15)
+		addi $8,$8,1		#increase address of line by one
+		addi $20,$20,1		#increase non-whitespace character counter by 1
+		j loop			#jump to top of loop to test next character
+
+   #firstchar is used when the first character of a word has been found
+firstchar:
+		li $15,1		#set length of word to 1
+		move $13,$8		#save address of this character to point to this word
+		addi $8,$8,1		#increase address of line by 1
+		li $14,0		#set whiteflag to 0
+		addi $20,$20,1		#increase non-whitespace character counter by 1
+		j loop			#jump to top of loop
+
+   #white is used when a whitespace has been read into $9
+white:
+   #jump to firstwhite: if whiteflag=0
+		beq $14,$0 firstwhite
+		addi $8,$8,1		#increase address of line by 1
+		j loop			#jump to top of loop
+
+   #firstwhite is used when the first whitespace character after a word is found
+firstwhite: 
+		sb $0,0($8)		#set current position of line to '\0' for printing
+		jal checkmax
+		jal checkmin
+		li $14,1		#set whiteflag
+		addi $8,$8,1		#increase postion of line
+		addi $21,$21,1		#increase word counter
+		j loop			#jump to top of loop
+
+   #checkmax determines if the current word is longer than the max word
+checkmax:
+		bgt $15,$16 setmax	#jump to setmax if current word is longer than maxmimum word
+		jr $31			#return to position in firstwhite(checkmin line)
+
+   #setmax stores the location of the current word as the max word and the length of the current word as the max length
+setmax:
+		move $16,$15		#set max length
+		move $17,$13		#set location of max word
+		jr $31			#return to position in firstwhite (checkmin line)
+		
+  #checkmin determines if the current word is shorter than the minimum word
+checkmin:
+		blt $15,$18, setmin	#jump to setmin: if the current word is shorter than the minimum word
+		jr $31			#return to position in firstwhite(setting whiteflag)
+
+  #setmin stores the location and length of the current word as the minimum word
+setmin:
+		move $18,$15		#set min length
+		move $19,$13		#set min word location
+		jr $31			#return to position in firstwhite(setting whiteflag
+
+   #print: displays the the number of words, the number of non-whitespace characters, max/min words and their lengths
+    #after checking if the string was terminated by a non-whitespace character so that the final word is processed
+print:		jal checklast
+		li $v0,4
+		la $a0,outa
+		syscall
+		li $v0,1
+		move $a0,$20
+		syscall
+		li $v0,4
+		la $a0,outb
+		syscall
+		li $v0,1
+		move $a0,$21
+		syscall
+		li $v0,4
+		la $a0,outc
+		syscall
+		li $v0,1
+		move $a0,$16
+		syscall
+		li $v0,4
+		la $a0,outd
+		syscall
+		li $v0,1
+		move $a0,$18
+		syscall
+		li $v0,4
+		la $a0,oute
+		syscall
+		li $v0,4
+		move $a0,$17
+		syscall
+		li $v0,4
+		la $a0,outf
+		syscall
+		li $v0,4
+		move $a0,$19
+		syscall
+		li $v0,10
+		syscall
+
+   #checklast: jumps to firstwhite: if the whitespace flag wasn't set to 1 before the '\0' was read in
+checklast:	beq $14,$0, firstwhite	#jumps to firstwhite if the previous character wasn't a whitespace character
+		jr $31			#returns to print if whiteflag was 0

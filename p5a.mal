@@ -1,0 +1,236 @@
+#project 5 part a
+#Scott Nearing
+#W. 9:20 lab
+#Lab TA: Daniel Bokser
+
+#General Description:
+ #This program reads in a positive integer value from the user,
+ #determines the number of ones on the right side of the binary
+ #representation, determines the number of zeros on the left 
+ #side of the binary representation, determines the highest power
+ #of two that evenly divides the user's integer, determines the
+ #largest digit in the decimal representation of the user's
+ #integer, and prints these numbers.
+
+
+#data section
+
+		.data
+   #the following are strings used to label the output and prmpt
+    #the user for input
+prompt:		.asciiz 	"\nPositive integer: "
+right:          .asciiz		"\nNo. of 1's in the right half: "
+left:		.asciiz		"\nNo. of 0's in the left half: "
+power:		.asciiz		"\nHighest power of 2: "
+digit:		.asciiz		"\nLargest digit: "
+
+
+
+#text section
+
+
+		.text
+
+		.globl main   #set start point
+
+   #this is the only function in this program
+    #it uses bitwise opperations to determine the number of ones and 
+    #and zeros in the binary representation of the user's integer
+     #a procedure involving successive applications of modulus 
+     #and division are used to calculate the largest digit in the 
+     #decimal representation
+
+main:				
+
+   #print prompt
+		li $v0,4
+		la $a0, prompt
+		syscall
+
+   #read int
+		li $v0,5
+		syscall
+
+   #store input in register 16
+		move $16,$v0
+
+
+
+   #$24 is set to 0 and is used to hold largest digit
+		li $24,0
+   #$8 is set to 10 for use in bigdigit
+		li $8,10
+   #$13 is set to 16; this is used to jump to lhalf from right half
+		li $13,16
+   #$12 is used to jump to outpu from lhalf; $12 is set to 32
+		li $12,32
+   #create counter of 1's on right side in $14; set it to 0
+		li $14,0
+   #create mask in $17; 31 zeros followed by a single 1.
+		li $17,1
+   #create loop index in $15; set it to 0
+		li $15,0
+   #counter of number of zeros in left side
+		li $11,0
+   #flag used to determine if a 1 has been found in the left side
+		li $10,0
+   #holds largest power of 2 that evenly divides user's int
+		li $9,0
+
+#computing number of 1's in the right half. This is a loop.
+
+rhalf:
+
+
+   #jump to lhalf if loop index($15) == 16(this means the loop has been executed 16 times)
+		beq $15,$13, lhalf
+		
+   #use bitwise and on user's int($16) and the mask($17); result stored in $18
+		and $18,$16,$17
+
+   #shift mask left one for next use; result stored in $17(same register)
+		sll $17,$17, 1
+
+   #increase loop inedex by 1
+		addi $15,$15,1
+
+   #jump to foundone if $18 is greater than 0(which means a 1 was found)
+		bgtz $18, foundone
+   #jump to top of rhalf
+		j rhalf
+
+
+   #increase counter of 1's on right side by 1 then return to rhalf
+      #jumps to set power if $10 == 0(this is only done once)
+foundone:
+
+		addi $14,$14,1
+		beqz $10, setpower
+		j rhalf
+
+
+   #sets $9 to loop index then subtracts one; this is the highest power of 2 that evenly divides the users int
+      #then it sets the flag($10) to one and jumps to rhalf
+setpower:
+
+		move $9,$15
+		addi $9,$9,-1
+		addi $10,$10,1
+		j rhalf
+
+
+
+   #Count number of 0's in left half;mask starts with all 0's and a 1 at position 17
+
+lhalf:
+
+
+   #jump to bigdigit if loop index($15) == 32; this means the loop has been completed 16 times
+		beq $15,$12 bigdigit
+
+   #use bitwise and on user's int($16) and mask($17); result stored in $18
+		and $18,$16,$17
+
+   #shift mask left one for next use; result stored in the same register($17)
+		sll $17,$17,1
+
+   #increase loop index by 1
+		addi $15,$15,1
+
+   #jump to foundzero if $18 equals 0; which means a 0 was found 
+		beqz $18, foundzero
+
+   #at this point we know we are looking at a 1; so we can test if $10 holds a zero
+    #and jump to leftpower
+		beqz $10, leftpower
+
+   #jump to top of lhalf
+		j lhalf
+
+
+   #increase number of 0's found and jump to top of lhalf
+foundzero:
+		addi $11,$11,1
+		j lhalf
+
+
+   #sets the power if the first non-zero digit appeared in the left half
+leftpower:
+		move $9,$15
+		addi $9,$9,-1
+		li $10,1
+		j lhalf
+
+
+   #finds the largest digit in the users int
+
+bigdigit:
+
+   #jump to outpu if $16(user's int) has been changed to 0
+		beqz $16,outpu
+
+   #digit is stored in $17 by finding remainder of users number divided by 10
+		rem $17,$16,$8
+
+   #set $16 to $16/10
+		div $16,$16,$8
+
+   #jump to savedigit if $17(current digit) > $24(max digit)
+		bgt $17,$24 savedigit
+
+   #jump to top of bigdigit
+		j bigdigit
+
+
+savedigit:
+
+		move $24,$17
+		j bigdigit
+
+
+
+   #prints output
+
+outpu:
+   #load right output and print
+		li $v0,4
+		la $a0,right
+		syscall
+   #load number of 1's on right side and print
+		li $v0,1
+		move $a0,$14
+		syscall
+
+   #load left output and print
+		li $v0,4
+		la $a0,left
+		syscall
+   #load number of 0's on the left side and print
+		li $v0,1
+		move $a0,$11
+		syscall
+
+   #load power output and print
+		li $v0,4
+		la $a0,power
+		syscall
+   #load highest power and print
+		li $v0,1
+		move $a0,$9
+		syscall
+
+   #load digit output and print
+		li $v0,4
+		la $a0,digit
+		syscall
+   #load max digit and print
+		li $v0,1
+		move $a0,$24
+		syscall
+
+
+   #exit
+		li $v0,10
+		li $a0,0
+		syscall
+
